@@ -143,7 +143,24 @@ function requireKey(envName: string | undefined, provider: string, optional?: bo
   return key;
 }
 
+/** Convenience aliases so common models can be selected by a short name. */
+export const MODEL_ALIASES: Record<string, string> = {
+  opus: "anthropic:claude-opus-4-8",
+  sonnet: "anthropic:claude-sonnet-4-6",
+  haiku: "anthropic:claude-haiku-4-5-20251001",
+  claude: "anthropic:claude-sonnet-4-6",
+  gpt: "openai:gpt-4o",
+  "gpt-4o": "openai:gpt-4o",
+  "4o": "openai:gpt-4o",
+  gemini: "google:gemini-2.0-flash",
+  deepseek: "deepseek:deepseek-chat",
+  llama: "groq:llama-3.3-70b-versatile",
+  qwen: "ollama:qwen2.5-coder",
+  local: "ollama:qwen2.5-coder",
+};
+
 export function resolveModel(spec: string, config: OmniConfig): ResolvedModel {
+  spec = MODEL_ALIASES[spec] ?? spec;
   const { provider, modelId } = parseModelSpec(spec);
   const custom = config.providers?.[provider];
   const builtin = BUILTIN_PROVIDERS[provider];

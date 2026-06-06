@@ -181,7 +181,7 @@ export class Agent {
   }
 
   /** Run one user turn (which may span many tool-use steps). */
-  async send(userText: string, signal?: AbortSignal): Promise<TurnResult> {
+  async send(userText: string, signal?: AbortSignal, render = true): Promise<TurnResult> {
     this.messages.push({ role: "user", content: userText });
     const res = await runTurn({
       model: this.model,
@@ -190,7 +190,7 @@ export class Agent {
       tools: this.tools,
       config: this.config,
       ui: this.ui,
-      render: true,
+      render,
       signal,
     });
     this.messages.push(...res.newMessages);

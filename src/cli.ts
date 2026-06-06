@@ -10,6 +10,8 @@ import { UI, pc } from "./ui.js";
 import { handleSlash } from "./slash.js";
 import { loadMcpTools } from "./mcp.js";
 import { newSessionId, saveSession, loadSession, latestSession, type SessionData } from "./session.js";
+import { expandMentions } from "./mentions.js";
+import { loadCustomCommands, expandCommand, type CustomCommand } from "./commands.js";
 
 const VERSION = "0.1.0";
 
@@ -24,11 +26,12 @@ interface Args {
   maxSteps?: number;
   help: boolean;
   version: boolean;
+  json: boolean;
   sub?: string[];
 }
 
 function parseArgs(argv: string[]): Args {
-  const a: Args = { print: false, cont: false, help: false, version: false };
+  const a: Args = { print: false, cont: false, help: false, version: false, json: false };
   if (argv[0] === "provider" || argv[0] === "config") {
     a.sub = argv;
     return a;
@@ -44,6 +47,8 @@ function parseArgs(argv: string[]): Args {
       case "--resume": a.resume = argv[++i]; break;
       case "--thinking": a.thinking = true; break;
       case "--max-steps": a.maxSteps = parseInt(argv[++i], 10); break;
+      case "--json": a.json = true; break;
+      case "--output-format": if (argv[++i] === "json") a.json = true; break;
       case "-h": case "--help": a.help = true; break;
       case "-v": case "--version": a.version = true; break;
       default:
@@ -68,12 +73,16 @@ ${pc.bold("Usage:")}
   omnicode provider add <name> --base-url <url> [--key-env <ENV>]
   omnicode config [path|show]
 
+  Aliases: opus, sonnet, gpt, gemini, deepseek, llama, local  (e.g. omnicode -m opus)
+  In chat: @path attaches a file; custom commands live in ~/.omnicode/commands/*.md
+
 ${pc.bold("Flags:")}
   -m, --model <spec>     Model as provider:model (e.g. anthropic:claude-opus-4-8, ollama:qwen2.5-coder)
       --mode <name>      Permission mode: default | acceptEdits | plan | bypass
       --thinking         Enable extended thinking (Anthropic)
       --max-steps <n>    Max tool-use steps per turn
   -p, --print            Non-interactive: run one prompt and exit
+      --json             With -p: print result as JSON (result, model, usage, steps)
   -c, --continue         Resume the most recent session here
       --resume <id>      Resume a specific session
   -h, --help             Show this help
@@ -168,6 +177,7 @@ async function main(): Promise<void> {
   const mcp = await loadMcpTools(config, ui);
 
   const agent = new Agent(resolved, config, ui, permissions, cwd, mcp.tools);
+  const customCommands = loadCustomCommands(cwd);
 
   // Session restore.
   let session: SessionData;
@@ -224,16 +234,16 @@ async function main(): Promise<void> {
     }
   });
 
-  const runTurn = async (prompt: string): Promise<string> => {
+  const runTurn = async (prompt: string, render = true) => {
     currentAbort = new AbortController();
     try {
-      const res = await agent.send(prompt, currentAbort.signal);
-      ui.usage(res.usage.input, res.usage.output, res.steps);
-      return res.text;
+      const res = await agent.send(prompt, currentAbort.signal, render);
+      if (!args.json) ui.usage(res.usage.input, res.usage.output, res.steps);
+      return res;
     } catch (e: any) {
-      if (e?.name === "AbortError" || /abort/i.test(e?.message ?? "")) return "";
+      if (e?.name === "AbortError" || /abort/i.test(e?.message ?? "")) return null;
       ui.error(`\n  Error: ${e.message ?? e}`);
-      return "";
+      return null;
     } finally {
       currentAbort = null;
       persist();
@@ -250,7 +260,17 @@ async function main(): Promise<void> {
       ui.close();
       return;
     }
-    await runTurn(prompt);
+    const res = await runTurn(expandMentions(prompt, cwd), !args.json);
+    if (args.json) {
+      ui.line(
+        JSON.stringify({
+          result: res?.text ?? "",
+          model: `${agent.model.provider}:${agent.model.modelId}`,
+          usage: res?.usage ?? { input: 0, output: 0 },
+          steps: res?.steps ?? 0,
+        }),
+      );
+    }
     await mcp.close();
     ui.close();
     return;
@@ -260,7 +280,7 @@ async function main(): Promise<void> {
   ui.banner(`${resolved.provider}:${resolved.modelId}`, permissions.mode, cwd);
   if (args.prompt) {
     // A prompt was passed positionally without -p: run it first, then continue interactively.
-    await runTurn(args.prompt);
+    await runTurn(expandMentions(args.prompt, cwd));
   }
 
   while (true) {
@@ -268,13 +288,24 @@ async function main(): Promise<void> {
     if (!input) continue;
 
     if (input.startsWith("/")) {
+      const name = input.slice(1).split(/\s+/)[0];
+      if (name === "commands") {
+        listCustomCommands(customCommands, ui);
+        continue;
+      }
+      const custom = customCommands.get(name);
+      if (custom) {
+        const cmdArgs = input.slice(1 + name.length).trim();
+        await runTurn(expandMentions(expandCommand(custom.template, cmdArgs), cwd));
+        continue;
+      }
       const result = await handleSlash(input, { agent, ui, config, permissions, cwd, persist, applyModel });
       if (result.exit) break;
       if (result.runPrompt) {
-        const text = await runTurn(result.runPrompt);
-        if (result.compact && text) {
+        const res = await runTurn(result.runPrompt);
+        if (result.compact && res?.text) {
           agent.messages = [
-            { role: "user", content: `Context from earlier in this session (compacted):\n\n${text}` },
+            { role: "user", content: `Context from earlier in this session (compacted):\n\n${res.text}` },
           ];
           ui.success("  Conversation compacted.");
         }
@@ -282,7 +313,7 @@ async function main(): Promise<void> {
       continue;
     }
 
-    await runTurn(input);
+    await runTurn(expandMentions(input, cwd));
   }
 
   persist();
@@ -293,6 +324,16 @@ async function main(): Promise<void> {
 function freshSession(cwd: string, model: string): SessionData {
   const now = Date.now();
   return { id: newSessionId(), createdAt: now, updatedAt: now, cwd, model, usage: { input: 0, output: 0 }, messages: [] };
+}
+
+function listCustomCommands(cmds: Map<string, CustomCommand>, ui: UI): void {
+  if (cmds.size === 0) {
+    ui.info("  No custom commands. Add markdown files to ~/.omnicode/commands/ or .omnicode/commands/.");
+    return;
+  }
+  ui.line("\n  Custom commands:");
+  for (const c of cmds.values()) ui.line(`    /${c.name}  ${pc.dim(c.description)}`);
+  ui.line("");
 }
 
 main().catch((e) => {

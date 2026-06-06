@@ -91,6 +91,15 @@ omnicode -m myhost:some-model
 - **Extended thinking** — `--thinking` / `/thinking on` for Anthropic reasoning.
 - **MCP** — connect Model Context Protocol servers and use their tools (same ecosystem
   as Claude Code). Declare them in `~/.omnicode/config.json`.
+- **@file mentions** — reference a file in chat with `@path/to/file` and its contents
+  are attached as context automatically.
+- **Custom commands** — drop a markdown file in `~/.omnicode/commands/` (or
+  `.omnicode/commands/` in a project); `foo.md` becomes `/foo`, with `$ARGUMENTS` and
+  `$1`,`$2`… substitution. List them with `/commands`.
+- **Model aliases** — short names for common models: `opus`, `sonnet`, `gpt`, `gemini`,
+  `deepseek`, `llama`, `local` (e.g. `omnicode -m opus`).
+- **JSON output** — `omnicode -p "…" --json` prints `{ result, model, usage, steps }`
+  for scripting.
 
 ## Slash commands
 
@@ -149,9 +158,8 @@ Layout: `src/cli.ts` (entry/REPL), `src/agent.ts` (loop), `src/providers.ts`
 
 - Prompt caching for Anthropic (cache the system prompt + tool defs)
 - Image/PDF inputs for multimodal models
-- Custom slash commands from `~/.omnicode/commands/*.md`
 - Hooks (pre/post tool-use shell hooks)
-- `@file` mentions and richer diff rendering
+- Richer inline diff rendering for edits
 
 ## License
 
