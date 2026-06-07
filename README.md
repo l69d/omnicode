@@ -91,6 +91,9 @@ omnicode -m myhost:some-model
 - **Extended thinking** — `--thinking` / `/thinking on` for Anthropic reasoning.
 - **MCP** — connect Model Context Protocol servers and use their tools (same ecosystem
   as Claude Code). Declare them in `~/.omnicode/config.json`.
+- **Hooks** — run shell commands around tool use (`preToolUse` / `postToolUse`); a
+  non-zero `preToolUse` exit blocks the call (its output is the reason shown to the
+  model). Each hook gets a JSON payload on stdin. Configure in `~/.omnicode/config.json`.
 - **@file mentions** — reference a file in chat with `@path/to/file` and its contents
   are attached as context automatically.
 - **Custom commands** — drop a markdown file in `~/.omnicode/commands/` (or
@@ -126,7 +129,10 @@ they're read from the environment.
   },
   "mcpServers": {
     "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] }
-  }
+  },
+  "hooks": [
+    { "event": "preToolUse", "matcher": "run_command", "command": "sh ./.omni/policy-check.sh" }
+  ]
 }
 ```
 

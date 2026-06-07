@@ -28,6 +28,16 @@ export interface McpServerConfig {
   env?: Record<string, string>;
 }
 
+export interface HookConfig {
+  /** When the hook fires. */
+  event: "preToolUse" | "postToolUse";
+  /** Tool name to match: exact, "prefix*", or "*"/omitted for all tools. */
+  matcher?: string;
+  /** Shell command; receives a JSON payload on stdin. A non-zero exit from a
+   *  preToolUse hook blocks the tool call (its output becomes the reason). */
+  command: string;
+}
+
 export interface CustomProvider {
   /** OpenAI-compatible base URL, e.g. https://my-host/v1 */
   baseURL: string;
@@ -52,6 +62,8 @@ export interface OmniConfig {
   providers?: Record<string, CustomProvider>;
   /** MCP servers to connect on startup, keyed by name. */
   mcpServers?: Record<string, McpServerConfig>;
+  /** Shell hooks fired around tool use (pre/post), like Claude Code hooks. */
+  hooks?: HookConfig[];
 }
 
 const DEFAULTS: OmniConfig = {

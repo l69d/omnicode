@@ -7,6 +7,7 @@ import { PermissionManager } from "./permissions.js";
 import { buildTools, type TodoItem } from "./tools/index.js";
 import { buildSystemPrompt } from "./systemPrompt.js";
 import { loadMemory } from "./memory.js";
+import { HookRunner, withHooks } from "./hooks.js";
 
 export interface Usage {
   input: number;
@@ -138,6 +139,7 @@ export class Agent {
   totalUsage: Usage = { input: 0, output: 0 };
   private tools: ToolSet;
   private system: string;
+  private hookRunner!: HookRunner;
 
   constructor(
     public model: ResolvedModel,
@@ -158,7 +160,8 @@ export class Agent {
       runSubAgent: (description: string, prompt: string, signal?: AbortSignal) =>
         this.runSubAgent(prompt, signal),
     };
-    this.tools = { ...buildTools(ctx), ...extraTools };
+    this.hookRunner = new HookRunner(config.hooks ?? [], cwd);
+    this.tools = withHooks({ ...buildTools(ctx), ...extraTools }, this.hookRunner, ui);
   }
 
   private rebuildSystem(): string {
@@ -209,7 +212,7 @@ export class Agent {
       resolvedModel: this.model,
       todos: [] as TodoItem[],
     };
-    const subTools = buildTools(ctx, false); // no nested sub-agents
+    const subTools = withHooks(buildTools(ctx, false), this.hookRunner, this.ui); // no nested sub-agents
     const subSystem =
       "You are a sub-agent invoked by the main coding agent to handle a focused task. " +
       "Use your tools to investigate or act, then return a single, complete answer. " +
