@@ -58,6 +58,8 @@ export interface OmniConfig {
   temperature?: number;
   /** Enable extended thinking / reasoning where the provider supports it. */
   thinking?: boolean;
+  /** Cache the system prompt + tool defs on Anthropic to cut cost/latency. */
+  promptCaching?: boolean;
   /** User-registered OpenAI-compatible providers, keyed by provider name. */
   providers?: Record<string, CustomProvider>;
   /** MCP servers to connect on startup, keyed by name. */

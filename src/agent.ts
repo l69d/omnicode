@@ -56,10 +56,24 @@ async function runTurn(opts: RunTurnOpts): Promise<TurnResult> {
   const { model, system, messages, tools, config, ui, render, signal } = opts;
   const thinking = model.provider === "anthropic" && config.thinking;
 
+  // Anthropic prompt caching: marking the system block as ephemeral caches the
+  // tool definitions + system prompt prefix, cutting cost/latency on later turns.
+  const cache = model.provider === "anthropic" && config.promptCaching === true;
+  const cachedMessages: ModelMessage[] = cache
+    ? [
+        {
+          role: "system",
+          content: system,
+          providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+        },
+        ...messages,
+      ]
+    : messages;
+
   const result = streamText({
     model: model.model,
-    system,
-    messages,
+    system: cache ? undefined : system,
+    messages: cachedMessages,
     tools,
     stopWhen: stepCountIs(config.maxSteps ?? 50),
     temperature: thinking ? undefined : config.temperature,

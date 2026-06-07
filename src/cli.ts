@@ -23,6 +23,7 @@ interface Args {
   cont: boolean;
   resume?: string;
   thinking?: boolean;
+  cache?: boolean;
   maxSteps?: number;
   help: boolean;
   version: boolean;
@@ -46,6 +47,7 @@ function parseArgs(argv: string[]): Args {
       case "-c": case "--continue": a.cont = true; break;
       case "--resume": a.resume = argv[++i]; break;
       case "--thinking": a.thinking = true; break;
+      case "--cache": a.cache = true; break;
       case "--max-steps": a.maxSteps = parseInt(argv[++i], 10); break;
       case "--json": a.json = true; break;
       case "--output-format": if (argv[++i] === "json") a.json = true; break;
@@ -80,6 +82,7 @@ ${pc.bold("Flags:")}
   -m, --model <spec>     Model as provider:model (e.g. anthropic:claude-opus-4-8, ollama:qwen2.5-coder)
       --mode <name>      Permission mode: default | acceptEdits | plan | bypass
       --thinking         Enable extended thinking (Anthropic)
+      --cache            Enable Anthropic prompt caching (system + tools)
       --max-steps <n>    Max tool-use steps per turn
   -p, --print            Non-interactive: run one prompt and exit
       --json             With -p: print result as JSON (result, model, usage, steps)
@@ -150,6 +153,7 @@ async function main(): Promise<void> {
   // Apply CLI overrides to config.
   if (args.mode) config.permissionMode = args.mode;
   if (args.thinking) config.thinking = true;
+  if (args.cache) config.promptCaching = true;
   if (args.maxSteps) config.maxSteps = args.maxSteps;
 
   // Resolve model.

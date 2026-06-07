@@ -33,6 +33,7 @@ Commands:
   /models               List supported providers and example specs
   /mode [name]          Show or set permission mode: default|acceptEdits|plan|bypass
   /thinking [on|off]    Toggle extended thinking (Anthropic)
+  /cache [on|off]       Toggle Anthropic prompt caching
   /tools                List available tools
   /usage                Show token usage this session
   /clear                Clear the conversation
@@ -112,6 +113,14 @@ export async function handleSlash(input: string, deps: SlashDeps): Promise<Slash
       config.thinking = on;
       saveConfig(config);
       ui.success(`  Extended thinking: ${on ? "on" : "off"}` + (agent.model.provider !== "anthropic" ? pc.dim("  (only applies to Anthropic models)") : ""));
+      return { handled: true };
+    }
+
+    case "cache": {
+      const on = arg === "on" || (arg === "" && !config.promptCaching);
+      config.promptCaching = on;
+      saveConfig(config);
+      ui.success(`  Prompt caching: ${on ? "on" : "off"}` + (agent.model.provider !== "anthropic" ? pc.dim("  (only applies to Anthropic models)") : ""));
       return { handled: true };
     }
 

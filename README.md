@@ -89,6 +89,8 @@ omnicode -m myhost:some-model
 - **Sessions** — auto-saved; `--continue` / `--resume <id>` to pick up where you left off.
 - **`/compact`** — summarize the conversation to reclaim context window.
 - **Extended thinking** — `--thinking` / `/thinking on` for Anthropic reasoning.
+- **Prompt caching** — `--cache` / `/cache on` caches the Anthropic system prompt +
+  tool definitions (ephemeral) to cut cost and latency on repeated turns.
 - **MCP** — connect Model Context Protocol servers and use their tools (same ecosystem
   as Claude Code). Declare them in `~/.omnicode/config.json`.
 - **Hooks** — run shell commands around tool use (`preToolUse` / `postToolUse`); a
