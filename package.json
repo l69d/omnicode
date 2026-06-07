@@ -1,6 +1,6 @@
 {
-  "name": "omnicode",
-  "version": "0.1.0",
+  "name": "@l69d/omnicode",
+  "version": "0.2.0",
   "description": "A model-agnostic agentic coding CLI — like Claude Code, but plug in any model (Claude, GPT, Gemini, DeepSeek, Groq, local Ollama, or any OpenAI-compatible endpoint).",
   "type": "module",
   "bin": {
@@ -29,7 +29,19 @@
     "ollama",
     "llm"
   ],
+  "author": "Karthik Gowda",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/l69d/omnicode.git"
+  },
+  "homepage": "https://github.com/l69d/omnicode#readme",
+  "bugs": {
+    "url": "https://github.com/l69d/omnicode/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
