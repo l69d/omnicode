@@ -1,5 +1,5 @@
 import { streamText, stepCountIs } from "ai";
-import type { ModelMessage, ToolSet } from "ai";
+import type { ModelMessage, ToolSet, UserContent } from "ai";
 import type { OmniConfig } from "./config.js";
 import type { ResolvedModel } from "./providers.js";
 import { UI } from "./ui.js";
@@ -198,8 +198,8 @@ export class Agent {
   }
 
   /** Run one user turn (which may span many tool-use steps). */
-  async send(userText: string, signal?: AbortSignal, render = true): Promise<TurnResult> {
-    this.messages.push({ role: "user", content: userText });
+  async send(content: UserContent, signal?: AbortSignal, render = true): Promise<TurnResult> {
+    this.messages.push({ role: "user", content });
     const res = await runTurn({
       model: this.model,
       system: this.system,

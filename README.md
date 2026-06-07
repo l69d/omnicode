@@ -103,6 +103,8 @@ omnicode -m myhost:some-model
   `$1`,`$2`… substitution. List them with `/commands`.
 - **Model aliases** — short names for common models: `opus`, `sonnet`, `gpt`, `gemini`,
   `deepseek`, `llama`, `local` (e.g. `omnicode -m opus`).
+- **Multimodal input** — attach images/PDFs with `--image <path>` or by `@`-mentioning
+  them in chat; they are sent as content parts to vision-capable models.
 - **JSON output** — `omnicode -p "…" --json` prints `{ result, model, usage, steps }`
   for scripting.
 

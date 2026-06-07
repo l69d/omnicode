@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import type { UserContent } from "ai";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Agent } from "./agent.js";
@@ -10,7 +11,7 @@ import { UI, pc } from "./ui.js";
 import { handleSlash } from "./slash.js";
 import { loadMcpTools } from "./mcp.js";
 import { newSessionId, saveSession, loadSession, latestSession, type SessionData } from "./session.js";
-import { expandMentions } from "./mentions.js";
+import { buildUserContent } from "./mentions.js";
 import { loadCustomCommands, expandCommand, type CustomCommand } from "./commands.js";
 
 const VERSION = "0.1.0";
@@ -25,6 +26,7 @@ interface Args {
   thinking?: boolean;
   cache?: boolean;
   maxSteps?: number;
+  attach?: string[];
   help: boolean;
   version: boolean;
   json: boolean;
@@ -48,6 +50,7 @@ function parseArgs(argv: string[]): Args {
       case "--resume": a.resume = argv[++i]; break;
       case "--thinking": a.thinking = true; break;
       case "--cache": a.cache = true; break;
+      case "--image": case "--file": case "--attach": (a.attach ??= []).push(argv[++i]); break;
       case "--max-steps": a.maxSteps = parseInt(argv[++i], 10); break;
       case "--json": a.json = true; break;
       case "--output-format": if (argv[++i] === "json") a.json = true; break;
@@ -76,13 +79,15 @@ ${pc.bold("Usage:")}
   omnicode config [path|show]
 
   Aliases: opus, sonnet, gpt, gemini, deepseek, llama, local  (e.g. omnicode -m opus)
-  In chat: @path attaches a file; custom commands live in ~/.omnicode/commands/*.md
+  In chat: @path attaches a file (text inlined; images/PDFs sent to vision models)
+           custom commands live in ~/.omnicode/commands/*.md
 
 ${pc.bold("Flags:")}
   -m, --model <spec>     Model as provider:model (e.g. anthropic:claude-opus-4-8, ollama:qwen2.5-coder)
       --mode <name>      Permission mode: default | acceptEdits | plan | bypass
       --thinking         Enable extended thinking (Anthropic)
       --cache            Enable Anthropic prompt caching (system + tools)
+      --image <path>     Attach an image or PDF to the prompt (repeatable; vision models)
       --max-steps <n>    Max tool-use steps per turn
   -p, --print            Non-interactive: run one prompt and exit
       --json             With -p: print result as JSON (result, model, usage, steps)
@@ -238,7 +243,7 @@ async function main(): Promise<void> {
     }
   });
 
-  const runTurn = async (prompt: string, render = true) => {
+  const runTurn = async (prompt: UserContent, render = true) => {
     currentAbort = new AbortController();
     try {
       const res = await agent.send(prompt, currentAbort.signal, render);
@@ -264,7 +269,7 @@ async function main(): Promise<void> {
       ui.close();
       return;
     }
-    const res = await runTurn(expandMentions(prompt, cwd), !args.json);
+    const res = await runTurn(buildUserContent(prompt, cwd, args.attach ?? []), !args.json);
     if (args.json) {
       ui.line(
         JSON.stringify({
@@ -284,7 +289,7 @@ async function main(): Promise<void> {
   ui.banner(`${resolved.provider}:${resolved.modelId}`, permissions.mode, cwd);
   if (args.prompt) {
     // A prompt was passed positionally without -p: run it first, then continue interactively.
-    await runTurn(expandMentions(args.prompt, cwd));
+    await runTurn(buildUserContent(args.prompt, cwd, args.attach ?? []));
   }
 
   while (true) {
@@ -300,7 +305,7 @@ async function main(): Promise<void> {
       const custom = customCommands.get(name);
       if (custom) {
         const cmdArgs = input.slice(1 + name.length).trim();
-        await runTurn(expandMentions(expandCommand(custom.template, cmdArgs), cwd));
+        await runTurn(buildUserContent(expandCommand(custom.template, cmdArgs), cwd));
         continue;
       }
       const result = await handleSlash(input, { agent, ui, config, permissions, cwd, persist, applyModel });
@@ -317,7 +322,7 @@ async function main(): Promise<void> {
       continue;
     }
 
-    await runTurn(expandMentions(input, cwd));
+    await runTurn(buildUserContent(input, cwd));
   }
 
   persist();
