@@ -14,7 +14,7 @@ import { newSessionId, saveSession, loadSession, latestSession, type SessionData
 import { buildUserContent } from "./mentions.js";
 import { loadCustomCommands, expandCommand, type CustomCommand } from "./commands.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 interface Args {
   model?: string;
